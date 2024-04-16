@@ -46,7 +46,9 @@ Evaluation:
       cov_loss: None
 
       var:
+        dims: [ 0,2,4,6,8 ]
         alpha: 0.05
 
       es:
+        dims: [ 0,2,4,6,8 ]
         alpha: 0.05

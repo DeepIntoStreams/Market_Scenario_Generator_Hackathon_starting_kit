@@ -241,10 +241,10 @@ class EvaluationComponent(object):
 
     def var(self, real, fake):
         ecfg = self.config.Evaluation.TestMetrics.var
-        loss = to_numpy(VARLoss(real, name='var_loss', alpha=ecfg.alpha)(fake))
+        loss = to_numpy(VARLoss(real[:, :, ecfg.dims], name='var_loss', alpha=ecfg.alpha)(fake[:, :, ecfg.dims]))
         return loss
 
     def es(self, real, fake):
         ecfg = self.config.Evaluation.TestMetrics.es
-        loss = to_numpy(ESLoss(real, name='es_loss', alpha=ecfg.alpha)(fake))
+        loss = to_numpy(ESLoss(real[:, :, ecfg.dims], name='es_loss', alpha=ecfg.alpha)(fake[:, :, ecfg.dims]))
         return loss
