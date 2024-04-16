@@ -6,7 +6,7 @@ num_workers: 0
 
 
 Evaluation:
-  test_ratio: 0.2
+  test_ratio: 0.5
   n_eval: 5
   batch_size: 2
   metrics_enabled: [
