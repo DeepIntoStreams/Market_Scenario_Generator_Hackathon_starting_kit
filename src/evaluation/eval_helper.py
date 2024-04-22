@@ -7,12 +7,13 @@ from torch.utils.data import DataLoader, TensorDataset
 import copy
 from dataclasses import dataclass
 
+
 def cov_torch(x):
     """Estimates covariance matrix like numpy.cov"""
     device = x.device
     x = to_numpy(x)
     _, L, C = x.shape
-    x = x.reshape(-1, L*C)
+    x = x.reshape(-1, L * C)
     return torch.from_numpy(np.cov(x, rowvar=False)).to(device).float()
 
 
@@ -55,16 +56,16 @@ def non_stationary_acf_torch(X, symmetric=False):
 
     for i in range(D):
         # Compute the correlation between X_{t, d} and X_{t-tau, d}
-        if hasattr(torch,'corrcoef'): # version >= torch2.0
+        if hasattr(torch, 'corrcoef'):  # version >= torch2.0
             correlations[:, :, i] = torch.corrcoef(X[:, :, i].t())
-        else: #TODO: test and fix
+        else:  # TODO: test and fix
             correlations[:, :, i] = torch.from_numpy(np.corrcoef(to_numpy(X[:, :, i]).T))
 
     if not symmetric:
         # Loop through each time step from lag to T-1
         for t in range(T):
             # Loop through each lag from 1 to lag
-            for tau in range(t+1, T):
+            for tau in range(t + 1, T):
                 correlations[tau, t, :] = 0
 
     return correlations
@@ -83,6 +84,7 @@ def cacf_torch(x, lags: list, dim=(0, 1)):
     -------
 
     """
+
     # Define a helper function to get the lower triangular indices for a given dimension
     def get_lower_triangular_indices(n):
         return [list(x) for x in torch.tril_indices(n, n)]
@@ -117,12 +119,14 @@ def cacf_torch(x, lags: list, dim=(0, 1)):
 def rmse(x, y):
     return (x - y).pow(2).sum().sqrt()
 
-def mean_abs_diff(den1: torch.Tensor,den2: torch.Tensor):
-    return torch.mean(torch.abs(den1-den2),0)
+
+def mean_abs_diff(den1: torch.Tensor, den2: torch.Tensor):
+    return torch.mean(torch.abs(den1 - den2), 0)
 
 
-def mmd(x,y):
+def mmd(x, y):
     pass
+
 
 @dataclass
 class ModelSetup:
@@ -131,19 +135,20 @@ class ModelSetup:
     criterion: nn.Module
     epochs: int
 
+
 class TrainValidateTestModel:
-    def __init__(self,model=None,optimizer=None,criterion=None,epochs=None,device=None):
-        self.model = model 
+    def __init__(self, model=None, optimizer=None, criterion=None, epochs=None, device=None):
+        self.model = model
         self.device = device if device is not None else torch.device('cpu')
         self.optimizer = optimizer
         self.criterion = criterion
         self.epochs = epochs if epochs is not None else 100
 
     @staticmethod
-    def update_per_epoch(model,optimizer,criterion,
-                         dataloader,device,mode,
+    def update_per_epoch(model, optimizer, criterion,
+                         dataloader, device, mode,
                          calc_acc
-                         ): 
+                         ):
         '''
         mode: train, validate, test
         calc_acc: True for classification, False for regression
@@ -159,16 +164,17 @@ class TrainValidateTestModel:
 
         if mode == 'train':
             cxt_manager = torch.set_grad_enabled(True)
-        elif mode in ['test','validate']:
+        elif mode in ['test', 'validate']:
             cxt_manager = torch.no_grad()
         else:
             raise ValueError('mode must be either train, validate or test')
-
+        total_preds = []
+        total_labels = []
         # iterate over data
         for inputs, labels in dataloader:
 
             inputs = inputs.to(device)
-            labels = labels.to(device)            
+            labels = labels.to(device)
 
             with cxt_manager:
                 outputs = model(inputs)
@@ -181,6 +187,8 @@ class TrainValidateTestModel:
 
             if calc_acc:
                 _, preds = torch.max(outputs, 1)
+                total_preds.append(preds)
+                total_labels.append(labels)
                 running_corrects += (preds == labels).sum().item()
 
             running_loss += loss.item() * inputs.size(0)
@@ -188,16 +196,18 @@ class TrainValidateTestModel:
 
         # statistics of the epoch
         loss = running_loss / total
-        acc = running_corrects / total if calc_acc else None
-        
+        acc = running_corrects / total if calc_acc else 0
+
         # Clean CUDA Memory
         del inputs, outputs, labels
         torch.cuda.empty_cache()
-        
-        return model, loss, acc
+        if calc_acc:
+            return model, [total_labels, total_preds], acc
+        else:
+            return model, loss, acc
 
     @staticmethod
-    def train_model(model,optimizer,criterion,epochs,device,calc_acc,
+    def train_model(model, optimizer, criterion, epochs, device, calc_acc,
                     train_dl, validate_dl=None,
                     valid_condition=None,
                     ):
@@ -229,9 +239,10 @@ class TrainValidateTestModel:
         for epoch in range(epochs):
             # train
             model.train()
-            model, tranining_loss, training_acc = __class__.update_per_epoch(model, optimizer, criterion,train_dl,device,mode='train',calc_acc=calc_acc)
+            model, tranining_loss, training_acc = __class__.update_per_epoch(model, optimizer, criterion, train_dl,
+                                                                             device, mode='train', calc_acc=False)
             best_model_state_dict = copy.deepcopy(model.state_dict())
-            info = f'Epoch {epoch+1}/{epochs} | Loss: {tranining_loss:.4f}'
+            info = f'Epoch {epoch + 1}/{epochs} | Loss: {tranining_loss:.4f}'
             info += f' | Acc: {training_acc:.4f}' if calc_acc else ''
             # print(info)
 
@@ -239,35 +250,38 @@ class TrainValidateTestModel:
             if valid_condition is not None:
 
                 model.eval()
-                model, validation_loss, validation_acc = __class__.update_per_epoch(model, None, criterion,validate_dl,device,mode='validate',calc_acc=calc_acc)
-                
-                if valid_condition(validation_loss,validation_acc,best_acc,best_loss):
+                model, validation_loss, validation_acc = __class__.update_per_epoch(model, None, criterion, validate_dl,
+                                                                                    device, mode='validate',
+                                                                                    calc_acc=False)
+
+                if valid_condition(validation_loss, validation_acc, best_acc, best_loss):
                     best_acc = validation_acc
                     best_loss = validation_loss
                     best_model_state_dict = copy.deepcopy(model.state_dict())
                     # print(f'Validation | Loss: {loss:.4f} | Acc: {acc:.4f}')
 
         model.load_state_dict(best_model_state_dict)
-        model_setup = ModelSetup(model=model,optimizer=optimizer,criterion=criterion,epochs=epochs)
+        model_setup = ModelSetup(model=model, optimizer=optimizer, criterion=criterion, epochs=epochs)
 
         loss = validation_loss if validation_loss is not None else tranining_loss
         acc = validation_acc if validation_acc is not None else training_acc
 
         return model_setup, loss, acc
 
-
     @staticmethod
-    def test_model(model, criterion,dataloader,device,calc_acc):
+    def test_model(model, criterion, dataloader, device, calc_acc):
         model.eval()
         model.to(device)
-        model, loss, acc = __class__.update_per_epoch(model, None, criterion,dataloader,device,mode='test',calc_acc=calc_acc)
+        model, loss, acc = __class__.update_per_epoch(model, None, criterion, dataloader, device, mode='test',
+                                                      calc_acc=calc_acc)
         return loss, acc
 
     def train_val_test_classification(self, train_dl, test_dl, model, train=True, validate=True):
         criterion = torch.nn.CrossEntropyLoss()
-        optimizer = torch.optim.Adam(model.parameters(),lr=1e-3)
+        optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
         if train:
-            valid_condition = lambda loss,acc,best_acc,best_loss: (acc == best_acc) and (loss <= best_loss) or (acc > best_acc)
+            valid_condition = lambda loss, acc, best_acc, best_loss: (acc == best_acc) and (loss <= best_loss) or (
+                        acc > best_acc)
             model_setup, _, _ = self.train_model(
                 model=model,
                 optimizer=optimizer,
@@ -276,20 +290,20 @@ class TrainValidateTestModel:
                 device=self.device,
                 calc_acc=True,
                 train_dl=train_dl,
-                validate_dl=test_dl, # Question: why validate using test_dl?
+                validate_dl=test_dl,  # Question: why validate using test_dl?
                 valid_condition=valid_condition
-                )
+            )
         else:
             # TODO: direct testing by loading an existing model
             raise NotImplementedError("The model needs to be trained!")
-        test_loss, test_acc = self.test_model(model_setup.model,criterion,test_dl,self.device,calc_acc=True)
+        test_loss, test_acc = self.test_model(model_setup.model, criterion, test_dl, self.device, calc_acc=True)
         return model_setup, test_loss, test_acc
 
     def train_val_test_regressor(self, train_dl, test_dl, model, train=True, validate=True):
         criterion = torch.nn.L1Loss()
-        optimizer = torch.optim.Adam(model.parameters(),lr=1e-3)
+        optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
         if train:
-            valid_condition = lambda loss,acc,best_acc,best_loss: loss <= best_loss
+            valid_condition = lambda loss, acc, best_acc, best_loss: loss <= best_loss
             model_setup, _, _ = self.train_model(
                 model=model,
                 optimizer=optimizer,
@@ -300,7 +314,7 @@ class TrainValidateTestModel:
                 train_dl=train_dl,
                 validate_dl=test_dl,
                 valid_condition=valid_condition
-                )
+            )
         else:
             # TODO: direct testing by loading an existing model
             raise NotImplementedError("The model needs to be trained!")
@@ -311,15 +325,16 @@ class TrainValidateTestModel:
             dataloader=test_dl,
             device=self.device,
             calc_acc=False
-            )
+        )
         return model, test_loss
 
-def create_dl(dl1, dl2, batch_size,cutoff=False):
+
+def create_dl(dl1, dl2, batch_size, cutoff=False):
     x, y = [], []
 
     if cutoff:
         _, T, C = next(iter(dl1))[0].shape
-        T_cutoff = int(T/10)
+        T_cutoff = int(T / 10)
         for data in dl1:
             x.append(data[0][:, :-T_cutoff])
             y.append(data[0][:, -T_cutoff:].reshape(data[0].shape[0], -1))
