@@ -19,7 +19,7 @@ pip install cupy-cuda102
 pip install -r requirements.txt
 ```
 
-For code illustration, please take a closer look at the Jupyter Notebook we created, namely, example_pipeline.ipynb.
+For code illustration, please refer to the Jupyter Notebook we created, namely, example_pipeline.ipynb.
 
 ## Data
 For this challenge, the training data is located at [data/](data/). We provide here two different datasets, both are numpy arrays saved in `.pkl` format. The first dataset
