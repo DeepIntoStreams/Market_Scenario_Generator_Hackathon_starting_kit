@@ -24,6 +24,7 @@ def init_weights(m):
             pass
 
 
+# Sample model based on LSTM
 class GeneratorBase(nn.Module):
     def __init__(self, input_dim, output_dim):
         super(GeneratorBase, self).__init__()
@@ -31,49 +32,37 @@ class GeneratorBase(nn.Module):
         self.input_dim = input_dim
         self.output_dim = output_dim
 
-    def forward_(self, batch_size: int, ts_length: int, device: str):
+    def forward(self, batch_size: int, n_lags: int, device: str):
         """ Implement here generation scheme. """
         # ...
         pass
 
-    def forward(self, batch_size: int, n_lags: int, device: str):
-        x = self.forward_(batch_size, n_lags, device)
-        x = self.pipeline.inverse_transform(x)
-        return x
 
-
-class TSGenerator(GeneratorBase):
-    """
-    Sample generator class
-    """
-
-    def __init__(self, input_dim: int, output_dim: int, hidden_dim: int, n_layers: int, init_fixed: bool = True):
-        super(TSGenerator, self).__init__(input_dim, output_dim)
+class ConditionalLSTMGenerator(GeneratorBase):
+    def __init__(self, input_dim: int, output_dim: int, hidden_dim: int, n_layers: int):
+        super(ConditionalLSTMGenerator, self).__init__(input_dim, output_dim)
         # LSTM
         self.rnn = nn.LSTM(input_size=input_dim, hidden_size=hidden_dim,
                            num_layers=n_layers, batch_first=True)
         self.linear = nn.Linear(hidden_dim, output_dim, bias=True)
         self.linear.apply(init_weights)
 
-        self.init_fixed = init_fixed
 
-    def forward(self, batch_size: int, ts_length: int, device: str) -> torch.Tensor:
-        z = (0.1 * torch.randn(batch_size, ts_length,
-                               self.input_dim)).to(device)  # cumsum(1)
-
-        if self.init_fixed:
-            h0 = torch.zeros(self.rnn.num_layers, batch_size,
-                             self.rnn.hidden_size).to(device)
-        else:
-            h0 = torch.randn(self.rnn.num_layers, batch_size, self.rnn.hidden_size).to(
-                device).requires_grad_()
-        z[:, 0, :] *= 0
+    def forward(self, batch_size: int, condition: torch.Tensor, n_lags: int, device: str) -> torch.Tensor:
+        z = (0.1 * torch.randn(batch_size, n_lags,
+                               self.input_dim - condition.shape[-1])).to(device)  # cumsum(1)
+        z[:, 0, :] *= 0  # first point is fixed
         z = z.cumsum(1)
+        z = torch.cat([z, condition.unsqueeze(1).repeat((1, n_lags, 1))], dim=2)
+
+        h0 = torch.zeros(self.rnn.num_layers, batch_size,
+                         self.rnn.hidden_size).to(device)
+
         c0 = torch.zeros_like(h0)
         h1, _ = self.rnn(z, (h0, c0))
         x = self.linear(h1)
 
-        assert x.shape[1] == ts_length
+        assert x.shape[1] == n_lags
         return x
 
 
@@ -84,11 +73,10 @@ def init_generator():
         "G_input_dim": 5,
         "G_num_layers": 2
     }
-    generator = TSGenerator(input_dim=config["G_input_dim"],
+    generator = ConditionalLSTMGenerator(input_dim=config["G_input_dim"],
                             hidden_dim=config["G_hidden_dim"],
-                            output_dim=4,
-                            n_layers=config["G_num_layers"],
-                            init_fixed=True)
+                            output_dim=10,
+                            n_layers=config["G_num_layers"])
     print("Loading the model.")
     # Load from .pkl
     with open(PATH_TO_MODEL, "rb") as f:
@@ -102,5 +90,6 @@ if __name__ == '__main__':
     generator = init_generator()
     print("Generator loaded. Generate fake data.")
     with torch.no_grad():
-        fake_data = generator(batch_size=2000, ts_length=20, device='cpu')
+        condition = torch.ones([200, 1])
+        fake_data = generator(batch_size=200, condition=condition, n_lags=20, device='cpu')
     print(fake_data[0, 0:10, :])
