@@ -1,5 +1,5 @@
 """
-This is a sample file, user must provide a python function named init_generator() which:
+This is a sample file. Any user must provide a python function named init_generator() which:
     - initializes an instance of the generator,
     - loads the model parameters from model_dict.py,
     - returns the model.
