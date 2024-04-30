@@ -1,6 +1,6 @@
-# Starting kit for conditional time-series generation hackathon
+# Starting kit for Market Scenario Generator Hackathon 
 
-In this repository, we provide a standard pipeline to help you with the kick off of our hackathon. In this pipeline,
+In this repository, we provide a standard pipeline to help you with the kick-off of our hackathon. In this pipeline,
 we include: 
 1) data importing and explanatory analysis,
 2) the model build-up for both the generator and discriminator using LSTM modules,
@@ -19,7 +19,7 @@ pip install cupy-cuda102
 pip install -r requirements.txt
 ```
 
-For code illustration, please take a closer look on the Jupyter-Notebook we created, namely, example_pipeline.ipynb.
+For code illustration, please refer to the Jupyter Notebook we created, namely, example_pipeline.ipynb.
 
 ## Data
 For this challenge, the training data is located at [data/](data/). We provide here two different datasets, both are numpy arrays saved in `.pkl` format. The first dataset
