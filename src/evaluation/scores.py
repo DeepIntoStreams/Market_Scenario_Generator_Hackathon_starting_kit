@@ -94,18 +94,21 @@ def get_classification_score(real_train_dl, real_test_dl, fake_train_dl, fake_te
     return test_labels
 
 
-def compute_auc(truth_crisis, fake_crisis, truth_regular, fake_regular, config):
-    crisis_training_set = torch.cat([truth_crisis[:truth_crisis.shape[0] // 2], fake_crisis])[:200]
-    regular_training_set = truth_regular[:200]
+def compute_auc(truth_crisis, fake_crisis, fake_regular, truth_regular, config):
+
+    train_set_size = int(0.8*truth_regular.shape[0])
+    test_set_size = truth_crisis.shape[0] // 2
+
+    crisis_training_set = torch.cat([truth_crisis[:test_set_size], fake_crisis])[:train_set_size]
+    regular_training_set = truth_regular[:train_set_size]
 
     crisis_training_dl = DataLoader(TensorDataset(crisis_training_set), batch_size=32, shuffle=True)
-    regular_training_dl = DataLoader(TensorDataset(truth_regular[:200]), batch_size=32, shuffle=True)
+    regular_training_dl = DataLoader(TensorDataset(regular_training_set), batch_size=32, shuffle=True)
 
-    crisis_test_dl = DataLoader(TensorDataset(truth_crisis[truth_crisis.shape[0] // 2:]), batch_size=4, shuffle=True)
-    regular_test_dl = DataLoader(TensorDataset(truth_regular[200:216]), batch_size=4, shuffle=True)
+    crisis_test_dl = DataLoader(TensorDataset(truth_crisis[test_set_size:]), batch_size=4, shuffle=True)
+    regular_test_dl = DataLoader(TensorDataset(truth_regular[train_set_size:train_set_size+test_set_size]), batch_size=4, shuffle=True)
 
-    true_labels, pred_labels = get_classification_score(crisis_training_dl, crisis_test_dl, regular_training_dl,
-                                                        regular_test_dl, config)
+    true_labels, pred_labels = get_classification_score(crisis_training_dl, crisis_test_dl, regular_training_dl, regular_test_dl, config)
 
     # print(true_labels, pred_labels)
     auc = roc_auc_score(true_labels[0].cpu().numpy(), pred_labels[0].cpu().numpy())
