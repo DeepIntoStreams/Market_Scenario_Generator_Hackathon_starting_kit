@@ -8,8 +8,6 @@ In this pipeline, we include:
 3) training algorithm design,
 4) offline evaluation module.
 
-The data used for training and testing all come from the public data from the main hackathon website,
-
 ## Environment Setup
 The code has been tested successfully using Python 3.8 and pytorch 1.11.0. A typical process for installing the package dependencies involves creating a new Python virtual environment.
 
