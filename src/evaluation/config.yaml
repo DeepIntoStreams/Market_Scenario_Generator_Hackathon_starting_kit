@@ -23,7 +23,7 @@ Evaluation:
   TestMetrics:
       discriminative_score:
         hidden_size: 32
-        epochs : 10
+        epochs : 50
         num_layers: 2
         batch_size: 128
 

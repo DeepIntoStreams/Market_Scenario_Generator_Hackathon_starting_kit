@@ -80,7 +80,7 @@ def get_classification_score(real_train_dl, real_test_dl, fake_train_dl, fake_te
 
         def forward(self, x):
             x = self.rnn(x)[0][:, -1]
-            return self.linear(x).softmax(dim=1)
+            return self.linear(x)
 
     train_dl = create_dl(real_train_dl, fake_train_dl, mconfig.batch_size, cutoff=False)
     test_dl = create_dl(real_test_dl, fake_test_dl, mconfig.batch_size, cutoff=False)
@@ -94,12 +94,15 @@ def get_classification_score(real_train_dl, real_test_dl, fake_train_dl, fake_te
     return test_labels
 
 
-def compute_auc(truth_crisis, fake_crisis, fake_regular, truth_regular, config):
+def compute_auc(truth_crisis, fake_crisis, fake_regular, truth_regular, config, upsampling=True):
 
     train_set_size = int(0.8*truth_regular.shape[0])
     test_set_size = truth_crisis.shape[0] // 2
 
-    crisis_training_set = torch.cat([truth_crisis[:test_set_size], fake_crisis])[:train_set_size]
+    if upsampling:
+        crisis_training_set = torch.cat([truth_crisis[:test_set_size], fake_crisis])[:train_set_size]
+    else:
+        crisis_training_set = torch.cat([truth_crisis[:test_set_size]])[:train_set_size]
     regular_training_set = truth_regular[:train_set_size]
 
     crisis_training_dl = DataLoader(TensorDataset(crisis_training_set), batch_size=32, shuffle=True)
@@ -111,6 +114,6 @@ def compute_auc(truth_crisis, fake_crisis, fake_regular, truth_regular, config):
     true_labels, pred_labels = get_classification_score(crisis_training_dl, crisis_test_dl, regular_training_dl, regular_test_dl, config)
 
     # print(true_labels, pred_labels)
-    auc = roc_auc_score(true_labels[0].cpu().numpy(), pred_labels[0].cpu().numpy())
+    auc = roc_auc_score(true_labels.cpu().numpy(), pred_labels.cpu().numpy())
 
     return auc

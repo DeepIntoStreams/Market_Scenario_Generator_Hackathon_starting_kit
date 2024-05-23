@@ -147,7 +147,7 @@ class TrainValidateTestModel:
     @staticmethod
     def update_per_epoch(model, optimizer, criterion,
                          dataloader, device, mode,
-                         calc_acc
+                         calc_acc, calc_auc=False
                          ):
         '''
         mode: train, validate, test
@@ -170,6 +170,7 @@ class TrainValidateTestModel:
             raise ValueError('mode must be either train, validate or test')
         total_preds = []
         total_labels = []
+        total_outputs = []
         # iterate over data
         for inputs, labels in dataloader:
 
@@ -189,6 +190,7 @@ class TrainValidateTestModel:
                 _, preds = torch.max(outputs, 1)
                 total_preds.append(preds)
                 total_labels.append(labels)
+                total_outputs.append(outputs)
                 running_corrects += (preds == labels).sum().item()
 
             running_loss += loss.item() * inputs.size(0)
@@ -199,8 +201,10 @@ class TrainValidateTestModel:
         acc = running_corrects / total if calc_acc else 0
 
         # Clean CUDA Memory
-        del inputs, outputs, labels
+        # del inputs, outputs, labels
         torch.cuda.empty_cache()
+        if calc_auc and mode=='test':
+            return model, [total_labels, total_outputs], acc
         if calc_acc:
             return model, [total_labels, total_preds], acc
         else:
@@ -273,8 +277,11 @@ class TrainValidateTestModel:
         model.eval()
         model.to(device)
         model, loss, acc = __class__.update_per_epoch(model, None, criterion, dataloader, device, mode='test',
-                                                      calc_acc=calc_acc)
-        return loss, acc
+                                                      calc_acc=calc_acc, calc_auc=calc_acc)
+
+        true_labels, pred_labels = loss
+        pred_labels = pred_labels[0][:, -1]
+        return [true_labels[0], pred_labels], acc
 
     def train_val_test_classification(self, train_dl, test_dl, model, train=True, validate=True):
         criterion = torch.nn.CrossEntropyLoss()
