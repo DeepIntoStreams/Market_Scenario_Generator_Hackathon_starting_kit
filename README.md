@@ -1,13 +1,12 @@
 # Starting kit for Market Scenario Generator Hackathon 
 
-In this repository, we provide a standard pipeline to help you with the kick-off of our hackathon. In this pipeline,
-we include: 
+Welcome to our Market Scenario Generator Hackathon Starter Kit repository. This repository provides a standard pipeline to help you with the kick-off of our hackathon. For more details about the hackathon, visit the [Hackathon Website](https://hackathon.deepintomlf.ai/competitions/38). 
+
+In this pipeline, we include: 
 1) data importing and explanatory analysis,
 2) the model build-up for both the generator and discriminator using LSTM modules,
 3) training algorithm design,
 4) offline evaluation module.
-
-The data used for training and testing all come from the public data from the main hackathon website,
 
 ## Environment Setup
 The code has been tested successfully using Python 3.8 and pytorch 1.11.0. A typical process for installing the package dependencies involves creating a new Python virtual environment.
@@ -22,7 +21,7 @@ pip install -r requirements.txt
 For code illustration, please refer to the Jupyter Notebook we created, namely, example_pipeline.ipynb.
 
 ## Data
-For this challenge, the training data is located at [data/](data/). We provide here two different datasets, both are numpy arrays saved in `.pkl` format. The first dataset
+For this challenge, the training data is located at [data/](data/). Here, we provide two different datasets, both of which are numpy arrays saved in `.pkl` format. The first dataset
 [data/ref_data.pkl](data/) includes `1200` sample paths representing the daily return and volatility processes of `5` correlated assets. 
 The length of each path is `5`, resulting in a time series with shape is `[1200, 5, 10]`. The second dataset consists of label array of shape `[1200, 1]` which represents the market condition under with the raw time series is sampled, value `0` stands for regular market condition while value `1` stands for the market under financial crisis.
 
